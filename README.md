@@ -1,58 +1,106 @@
 
 # Welcome to your CDK Python project!
 
-This is a blank project for Python development with CDK.
+This Project for use `aws cdk v1.111.0` new feature [`aws_cdk.assertions`](https://docs.aws.amazon.com/cdk/api/latest/python/aws_cdk.assertions/README.ht) work with pytest for write testing code.
 
-The `cdk.json` file tells the CDK Toolkit how to execute your app.
 
-This project is set up like a standard Python project.  The initialization
-process also creates a virtualenv within this project, stored under the `.venv`
-directory.  To create the virtualenv it assumes that there is a `python3`
-(or `python` for Windows) executable in your path with access to the `venv`
-package. If for any reason the automatic creation of the virtualenv fails,
-you can create the virtualenv manually.
+### Create the virtualenv manually.
 
 To manually create a virtualenv on MacOS and Linux:
 
 ```
-$ python3 -m venv .venv
+python3 -m venv .venv
 ```
 
-After the init process completes and the virtualenv is created, you can use the following
-step to activate your virtualenv.
-
-```
-$ source .venv/bin/activate
+### source virtualenv
+```bash
+source .venv/bin/activate
 ```
 
-If you are a Windows platform, you would activate the virtualenv like this:
-
-```
-% .venv\Scripts\activate.bat
-```
-
-Once the virtualenv is activated, you can install the required dependencies.
-
-```
-$ pip install -r requirements.txt
+### Install requires packages.
+```bash
+pip install -r requirements.txt
 ```
 
-At this point you can now synthesize the CloudFormation template for this code.
-
+### Run Testing
+```bash
+pytest test.py
 ```
-$ cdk synth
+
+#### Case 1: let testing fail.
+in `test.py`
+```py
+from aws_cdk.assertions import  TemplateAssertions
+from aws_cdk import core
+from test_cdk_py.test_cdk_py_stack import TestCdkPyStack
+import json
+
+
+env = core.Environment(account="123456789012", region="us-east-1")
+
+def test_s3_bucket():
+  app = core.App()
+  tassert = TemplateAssertions.from_stack(TestCdkPyStack(app, "myteststack", env=env ))
+  tassert.has_resource_properties("AWS::S3::Bucket", props={"foo": "bar"})
 ```
 
-To add additional dependencies, for example other CDK libraries, just add
-them to your `setup.py` file and rerun the `pip install -r requirements.txt`
-command.
+You use this way to find the closest result.
+```bash
+pytest test.py
+---
+ pytest test.py 
+========================================================================= test session starts =========================================================================
+platform darwin -- Python 3.8.10, pytest-6.2.4, py-1.10.0, pluggy-0.13.1
+rootdir: /private/tmp/test_cdk_py, configfile: pytest.ini
+collecting ... /private/tmp/test_cdk_py/test_cdk_py/test_cdk_py_stack.py:8: PytestCollectionWarning: cannot collect test class 'TestCdkPyStack' because it has a __init__ constructor (from: test.py)
+  class TestCdkPyStack(cdk.Stack):
+collected 1 item                                                                                                                                                      
 
-## Useful commands
+test.py F                                                                                                                                                       [100%]
 
- * `cdk ls`          list all stacks in the app
- * `cdk synth`       emits the synthesized CloudFormation template
- * `cdk deploy`      deploy this stack to your default AWS account/region
- * `cdk diff`        compare deployed stack with current state
- * `cdk docs`        open CDK documentation
+============================================================================== FAILURES ===============================================================================
+___________________________________________________________________________ test_s3_bucket ____________________________________________________________________________
+jsii.errors.JavaScriptError: 
+  Error: 1 resources with type AWS::S3::Bucket found, but none match as expected.
+  The closest result is:
+    {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "BucketName": "testbucket"
+      }
+    }
+  with the following mismatches:
+        Missing key at /Properties/foo (using objectLike matcher)
+...
+...
+...
+======================================================================= short test summary info =======================================================================
+FAILED test.py::test_s3_bucket - jsii.errors.JSIIError: 1 resources with type AWS::S3::Bucket found, but none match as expected.
+========================================================================== 1 failed in 1.65s ==========================================================================
+```
 
-Enjoy!
+fix testing code `"foo": "bar"` to `"BucketName": "testbucket"` in test.py.
+```py
+...
+...
+
+def test_s3_bucket():
+  app = core.App()
+  tassert = TemplateAssertions.from_stack(TestCdkPyStack(app, "myteststack", env=env ))
+  tassert.has_resource_properties("AWS::S3::Bucket", props={"BucketName": "testbucket"})
+```
+Case 2: testing success 
+```bash
+pytest test.py 
+----
+=================================================================================================== test session starts ===================================================================================================
+platform darwin -- Python 3.8.10, pytest-6.2.4, py-1.10.0, pluggy-0.13.1
+rootdir: /private/tmp/test_cdk_py, configfile: pytest.ini
+collecting ... /private/tmp/test_cdk_py/test_cdk_py/test_cdk_py_stack.py:8: PytestCollectionWarning: cannot collect test class 'TestCdkPyStack' because it has a __init__ constructor (from: test.py)
+  class TestCdkPyStack(cdk.Stack):
+collected 1 item                                                                                                                                                                                                          
+
+test.py .                                                                                                                                                                                                           [100%]
+
+==================================================================================================== 1 passed in 1.47s ====================================================================================================
+```
